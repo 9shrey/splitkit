@@ -1,0 +1,37 @@
+# docker compose up --build, then open http://localhost:8081
+# Demo data: docker compose exec api python -m app.seed   (sign in as demo@splitkit.dev / splitkit-demo)
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: splitkit
+      POSTGRES_PASSWORD: splitkit
+      POSTGRES_DB: splitkit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitkit"]
+      interval: 2s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg://splitkit:splitkit@db:5432/splitkit
+      JWT_SECRET: ${JWT_SECRET:-local-compose-secret-change-me-please}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        API_URL: http://api:8000
+    ports:
+      - "8081:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
